@@ -2,6 +2,12 @@
 
 ## [Unreleased](https://github.com/alonrbar/redux-app/tree/develop)
 
+## [2.1.0 - 2018-05-10](https://github.com/alonrbar/redux-app/tree/v2.1.0)
+
+### Added
+
+- Re-add the `component` decorator (so that components with no actions can still be declared).
+
 ## [2.0.0 - 2018-03-17](https://github.com/alonrbar/redux-app/tree/v2.0.0)
 
 ### Added

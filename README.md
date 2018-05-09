@@ -24,10 +24,12 @@ npm install --save redux-app
 ## Short Example
 
 ```javascript
+@component
 class App {
     counter = new Counter();
 }
 
+@component
 class Counter {
     value = 0;
 
@@ -63,7 +65,7 @@ For each decorated class the library generates an underlying `Component` object 
 The new Component object has it's prototype patched and all of it's methods replaced with dispatch() calls.
 The generated Component also has a hidden 'reducer' property which is later on used by redux store. The 'reducer' property itself is generated from the original object methods, replacing all 'this' values with the current state from the store on each call (using Object.assign and Function.prototype.call).
 
-To make it easier to debug, each generated component name follows the following pattern: OriginalClassName_ReduxAppComponent. If while debugging you don't see the _ReduxAppComponent suffix it means the class was not replaced by an underlying component and is probably lacking a decorator (@action or @sequence).
+To make it easier to debug, each generated component name follows the following pattern: OriginalClassName_ReduxAppComponent (if while debugging you don't see the _ReduxAppComponent suffix it means the class was not replaced by an underlying component and is probably lacking a decorator, any of the following will do: @component, @action or @sequence).
 
 _Reading the source tip #1: There are two main classes in redux-app. The first is ReduxApp and the second is Component._
 
@@ -109,6 +111,7 @@ Usage:
 _working example can be found on the [redux-app-examples](https://github.com/alonrbar/redux-app-examples) page_
 
 ```javascript
+@component
 class MyComponent {
 
     @sequence
@@ -150,6 +153,7 @@ Example:
 _working example can be found on the [redux-app-examples](https://github.com/alonrbar/redux-app-examples) page_
 
 ```javascript
+@component
 export class App {
 
     @withId('SyncMe')
@@ -235,6 +239,7 @@ Example:
 _working example can be found on the [redux-app-examples](https://github.com/alonrbar/redux-app-examples) page_
 
 ```javascript
+@component
 class ComputedGreeter {
 
     public name: string;
@@ -257,23 +262,19 @@ You can use the `ignoreState` decorator to prevent particular properties of your
 Example:
 
 ```javascript
+@component
 class MyComponent {
 
-    public storeMe = 'hello';
+    public storeMe = 'I am stored';
 
     @ignoreState
     public ignoreMe = 'not stored';
-
-    @action
-    public changeState() {
-        this.storeMe = 'I am stored';
-    }
 }
 
 const app = new ReduxApp(new MyComponent());
 
-console.log(app.root); // { storeMe: 'hello', ignoreMe: 'not stored' }
-console.log(app.store.getState()); // { storeMe: 'hello' }
+console.log(app.root); // { storeMe: 'I am stored', ignoreMe: 'not stored' }
+console.log(app.store.getState()); // { storeMe: 'I am stored' }
 ```
 
 ### isInstanceOf
@@ -283,11 +284,9 @@ with a generated subclass of the base Component class. This means you lose the a
 like this:
 
 ```javascript
+@component
 class MyComponent {
-    @action
-    public someAction() {
-        // ...
-    }
+    // ...
 }
 
 // and elsewhere:
@@ -299,11 +298,9 @@ if (!(obj instanceof MyComponent))
 Luckily redux-app supplies a utility method called `isInstanceOf` which you can use instead:
 
 ```javascript
+@component
 class MyComponent {
-    @action
-    public someAction() {
-        // ...
-    }
+    // ...
 }
 
 // and elsewhere:

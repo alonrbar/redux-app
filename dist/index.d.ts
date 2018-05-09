@@ -12,6 +12,13 @@ import { Store, StoreEnhancer } from 'redux';
 export function action(target: object, propertyKey: string | symbol): void;
 
 /**
+ * Class decorator.
+ * 
+ * Mark this class as a redux component.
+ */
+export function component(ctor: Function): any;
+
+/**
  * Method decorator. 
  * 
  * The method will dispatch an action with the corresponding name but the
