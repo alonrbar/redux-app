@@ -427,6 +427,12 @@ function action_action(target, propertyKey) {
     info.actions[propertyKey] = true;
 }
 
+// CONCATENATED MODULE: ./src/decorators/component.ts
+
+function component_component(ctor) {
+    componentTemplateInfo_ComponentTemplateInfo.getOrInitInfo(ctor);
+}
+
 // CONCATENATED MODULE: ./src/decorators/ignoreState.ts
 
 function ignoreState(target, propertyKey) {
@@ -508,6 +514,7 @@ var withId_ComponentId = (function () {
 
 
 // CONCATENATED MODULE: ./src/decorators/index.ts
+
 
 
 
@@ -1147,6 +1154,7 @@ function isInstanceOf(obj, type) {
 // CONCATENATED MODULE: ./src/index.ts
 /* concated harmony reexport */__webpack_require__.d(__webpack_exports__, "isInstanceOf", function() { return isInstanceOf; });
 /* concated harmony reexport */__webpack_require__.d(__webpack_exports__, "action", function() { return action_action; });
+/* concated harmony reexport */__webpack_require__.d(__webpack_exports__, "component", function() { return component_component; });
 /* concated harmony reexport */__webpack_require__.d(__webpack_exports__, "ignoreState", function() { return ignoreState; });
 /* concated harmony reexport */__webpack_require__.d(__webpack_exports__, "sequence", function() { return sequence; });
 /* concated harmony reexport */__webpack_require__.d(__webpack_exports__, "withId", function() { return withId; });
