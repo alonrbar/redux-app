@@ -23,7 +23,7 @@
 ### Removed
 
 - Remove `ActionOptions`.
-- Remove `AppOptions.updateState` - components always change in respond to their actions.
+- Remove `AppOptions.updateState` - components always change in response to their actions.
 
 ## [2.1.0 - 2018-05-10](https://github.com/alonrbar/redux-app/tree/v2.1.0)
 
