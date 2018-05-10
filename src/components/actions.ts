@@ -1,10 +1,9 @@
 import { Action } from 'redux';
 import { ComponentInfo, ComponentTemplateInfo } from '../info';
-import { ActionOptions, globalOptions } from '../options';
+import { globalOptions } from '../options';
 import { IMap, Method } from '../types';
 import { getMethods } from '../utils';
 import { Component } from './component';
-var snakecase = require('lodash.snakecase');
 
 // tslint:disable-next-line:interface-name
 export interface ReduxAppAction extends Action {
@@ -57,20 +56,8 @@ export class ComponentActions {
     }
 
     public static getActionName(template: object, methodName: string): string {
-        const options = Object.assign(new ActionOptions(), globalOptions.action);
-
-        var actionName = methodName;
-        var actionNamespace = template.constructor.name;
-
-        if (options.uppercaseActions) {
-            actionName = snakecase(actionName).toUpperCase();
-            actionNamespace = snakecase(actionNamespace).toUpperCase();
-        }
-
-        if (options.actionNamespace) {
-            actionName = actionNamespace + options.actionNamespaceSeparator + actionName;
-        }
-
-        return actionName;
+        const className = template.constructor.name;
+        const resolver = globalOptions.actionNameResolver;
+        return resolver(className, methodName);
     }
 }

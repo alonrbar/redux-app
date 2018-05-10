@@ -2,6 +2,7 @@ import { expect } from 'chai';
 import { action } from 'src';
 import { Component } from 'src/components';
 import { ComponentInfo } from 'src/info';
+import { globalOptions } from 'src/options';
 import { FakeStore } from '../testTypes';
 
 // tslint:disable:no-unused-expression
@@ -321,31 +322,6 @@ describe(nameof(Component), () => {
 
     describe('reducer', () => {
 
-        it("throws when invoking an action from within another action", () => {
-
-            class Person {
-
-                public name: string;
-
-                @action
-                public changeName(name: string) {
-                    this.name = name;
-                }
-
-                @action
-                public shouldThrow() {
-                    this.changeName('something');
-                }
-            }
-
-            const store = new FakeStore();
-            const comp = Component.create(store, new Person());
-            const info = ComponentInfo.getInfo(comp);
-            const reducer = info.reducerCreator(() => { /* noop */ });
-
-            expect(() => reducer({}, { type: 'Person.shouldThrow' })).to.throw(Error);
-        });
-
         it("does not throw when invoking regular methods from within actions", () => {
 
             class Person {
@@ -364,11 +340,14 @@ describe(nameof(Component), () => {
             const store = new FakeStore();
             const comp = Component.create(store, new Person());
             const info = ComponentInfo.getInfo(comp);
-            const reducer = info.reducerCreator(() => { /* noop */ });
+            const reducer = info.reducer;
 
-            var newState = reducer({}, { type: 'Person.changeName', payload: ['alon'] }) as any;
+            const actionName = globalOptions.actionNameResolver(nameof(Person), nameof(Person.prototype.changeName));
+
+            var newState = reducer({}, { type: actionName, payload: ['alon'] }) as any;
 
             expect(newState.name).to.eql('ALON');
         });
+        
     });
 });

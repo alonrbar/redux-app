@@ -149,18 +149,8 @@ var componentInfo_ComponentInfo = (function () {
 
 
 // CONCATENATED MODULE: ./src/options.ts
-var ActionOptions = (function () {
-    function ActionOptions() {
-        this.actionNamespace = true;
-        this.actionNamespaceSeparator = '.';
-        this.uppercaseActions = false;
-    }
-    return ActionOptions;
-}());
-
 var AppOptions = (function () {
     function AppOptions() {
-        this.updateState = true;
     }
     return AppOptions;
 }());
@@ -176,7 +166,7 @@ var LogLevel;
 var GlobalOptions = (function () {
     function GlobalOptions() {
         this.logLevel = LogLevel.Warn;
-        this.action = new ActionOptions();
+        this.actionNameResolver = function (className, methodName) { return "[" + className + "] " + methodName; };
     }
     return GlobalOptions;
 }());
@@ -247,13 +237,6 @@ function simpleCombineReducers(reducers) {
 
 // CONCATENATED MODULE: ./src/utils/utils.ts
 
-function clearProperties(obj) {
-    var keys = Object.keys(obj);
-    for (var _i = 0, keys_1 = keys; _i < keys_1.length; _i++) {
-        var key = keys_1[_i];
-        delete obj[key];
-    }
-}
 var DescriptorType;
 (function (DescriptorType) {
     DescriptorType["None"] = "None";
@@ -539,7 +522,6 @@ var __assign = (this && this.__assign) || Object.assign || function(t) {
 
 
 
-var getProp = __webpack_require__(3);
 var ROOT_COMPONENT_PATH = 'root';
 var DEFAULT_APP_NAME = 'default';
 var appsRepository = {};
@@ -548,7 +530,6 @@ var UpdateContext = (function () {
     function UpdateContext(initial) {
         this.visited = new Set();
         this.path = ROOT_COMPONENT_PATH;
-        this.forceRecursion = false;
         Object.assign(this, initial);
     }
     return UpdateContext;
@@ -576,10 +557,8 @@ var reduxApp_ReduxApp = (function () {
             componentPaths: Object.keys(creationContext.createdComponents)
         });
         var rootReducer = reducer_ComponentReducer.combineReducersTree(this.root, reducersContext);
-        if (options.updateState) {
-            var stateListener = this.updateState(reducersContext);
-            this.subscriptionDisposer = this.store.subscribe(stateListener);
-        }
+        var stateListener = this.updateState(reducersContext);
+        this.subscriptionDisposer = this.store.subscribe(stateListener);
         this.store.replaceReducer(rootReducer);
     }
     ReduxApp.createApp = function (appTemplate) {
@@ -678,30 +657,18 @@ var reduxApp_ReduxApp = (function () {
     ReduxApp.prototype.updateState = function (reducersContext) {
         var _this = this;
         return function () {
-            var start = Date.now();
-            var newState = _this.store.getState();
             if (!_this.initialStateUpdated || !reducersContext.invoked) {
+                var start = Date.now();
+                var newState = _this.store.getState();
+                _this.updateStateRecursion(_this.root, newState, new UpdateContext());
                 _this.initialStateUpdated = true;
-                _this.updateStateRecursion(_this.root, newState, new UpdateContext({ forceRecursion: true }));
+                var end = Date.now();
+                log.debug("[updateState] Component tree updated in " + (end - start) + "ms.");
             }
             else {
-                _this.updateChangedComponents((_a = {}, _a[ROOT_COMPONENT_PATH] = newState, _a), reducersContext.changedComponents);
             }
             reducersContext.reset();
-            var end = Date.now();
-            log.debug("[updateState] Component tree updated in " + (end - start) + "ms.");
-            var _a;
         };
-    };
-    ReduxApp.prototype.updateChangedComponents = function (newState, changedComponents) {
-        var changedPaths = Object.keys(changedComponents);
-        var updateContext = new UpdateContext();
-        for (var _i = 0, changedPaths_1 = changedPaths; _i < changedPaths_1.length; _i++) {
-            var path = changedPaths_1[_i];
-            var curComponent = changedComponents[path];
-            var newSubState = getProp(newState, path);
-            this.updateStateRecursion(curComponent, newSubState, __assign({}, updateContext, { path: path }));
-        }
     };
     ReduxApp.prototype.updateStateRecursion = function (obj, newState, context) {
         if (obj === newState)
@@ -711,18 +678,12 @@ var reduxApp_ReduxApp = (function () {
         if (context.visited.has(obj))
             return obj;
         context.visited.add(obj);
-        if (context.forceRecursion || (obj instanceof component_Component)) {
-            var changeMessage;
-            if (Array.isArray(obj) && Array.isArray(newState)) {
-                changeMessage = this.updateArray(obj, newState, context);
-            }
-            else {
-                changeMessage = this.updateObject(obj, newState, context);
-            }
+        var changeMessage;
+        if (Array.isArray(obj) && Array.isArray(newState)) {
+            changeMessage = this.updateArray(obj, newState, context);
         }
         else {
-            obj = newState;
-            changeMessage = 'Object overwritten.';
+            changeMessage = this.updateObject(obj, newState, context);
         }
         if (changeMessage && changeMessage.length) {
             log.debug("[updateState] Change in '" + context.path + "'. " + changeMessage);
@@ -823,12 +784,10 @@ var reducer_CombineReducersContext = (function () {
         this.visited = new Set();
         this.path = ROOT_COMPONENT_PATH;
         this.componentPaths = [];
-        this.changedComponents = {};
         this.invoked = false;
         Object.assign(this, initial);
     }
     CombineReducersContext.prototype.reset = function () {
-        clearProperties(this.changedComponents);
         this.invoked = false;
     };
     return CombineReducersContext;
@@ -842,34 +801,29 @@ var reducer_ComponentReducer = (function () {
         if (!templateInfo)
             throw new Error("Inconsistent component '" + componentTemplate.constructor.name + "'. The 'component' class decorator is missing.");
         var methods = ComponentReducer.createMethodsLookup(componentTemplate, templateInfo);
-        var stateProto = ComponentReducer.createStateObjectPrototype(component, templateInfo);
         var componentId = componentInfo_ComponentInfo.getInfo(component).id;
-        return function (changeListener) {
-            return function (state, action) {
-                log.verbose("[reducer] Reducer of: " + componentTemplate.constructor.name + ", action: " + action.type + ".");
-                if (state === undefined) {
-                    log.verbose('[reducer] State is undefined, returning initial value.');
-                    return ComponentReducer.finalizeStateObject(component, component);
-                }
-                if (state === componentTemplate) {
-                    log.verbose("[reducer] State equals to component's template, returning initial value.");
-                    return ComponentReducer.finalizeStateObject(component, component);
-                }
-                if (componentId !== action.id) {
-                    log.verbose("[reducer] Component id and action.id don't match (" + componentId + " !== " + action.id + ").");
-                    return state;
-                }
-                var actionReducer = methods[action.type];
-                if (!actionReducer) {
-                    log.verbose('[reducer] No matching action in this reducer, returning previous state.');
-                    return state;
-                }
-                var newState = ComponentReducer.createStateObject(state, stateProto);
-                actionReducer.call.apply(actionReducer, [newState].concat(action.payload));
-                changeListener(component);
-                log.verbose('[reducer] Reducer invoked, returning new state.');
-                return ComponentReducer.finalizeStateObject(newState, component);
-            };
+        return function (state, action) {
+            log.verbose("[reducer] Reducer of: " + componentTemplate.constructor.name + ", action: " + action.type + ".");
+            if (state === undefined) {
+                log.verbose('[reducer] State is undefined, returning initial value.');
+                return ComponentReducer.finalizeStateObject(component);
+            }
+            if (state === componentTemplate) {
+                log.verbose("[reducer] State equals to component's template, returning initial value.");
+                return ComponentReducer.finalizeStateObject(component);
+            }
+            if (componentId !== action.id) {
+                log.verbose("[reducer] Component id and action.id don't match (" + componentId + " !== " + action.id + ").");
+                return state;
+            }
+            var actionReducer = methods[action.type];
+            if (!actionReducer) {
+                log.verbose('[reducer] No matching action in this reducer, returning previous state.');
+                return state;
+            }
+            actionReducer.call.apply(actionReducer, [component].concat(action.payload));
+            log.verbose('[reducer] Reducer invoked, returning new state.');
+            return ComponentReducer.finalizeStateObject(component);
         };
     };
     ComponentReducer.combineReducersTree = function (root, context) {
@@ -893,37 +847,9 @@ var reducer_ComponentReducer = (function () {
         });
         return actionMethods;
     };
-    ComponentReducer.createStateObjectPrototype = function (component, templateInfo) {
-        var stateProto = defineProperties({}, component, [DescriptorType.Property]);
-        var componentMethods = getMethods(component);
-        for (var _i = 0, _a = Object.keys(componentMethods); _i < _a.length; _i++) {
-            var key = _a[_i];
-            if (!templateInfo.actions[key]) {
-                stateProto[key] = componentMethods[key].bind(component);
-            }
-            else {
-                stateProto[key] = ComponentReducer.actionInvokedError;
-            }
-        }
-        return stateProto;
-    };
-    ComponentReducer.actionInvokedError = function () {
-        throw new Error("Actions should not be invoked from within other actions.");
-    };
-    ComponentReducer.createStateObject = function (state, stateProto) {
-        var stateObj = Object.create(stateProto);
-        for (var _i = 0, _a = Object.keys(state); _i < _a.length; _i++) {
-            var key = _a[_i];
-            var desc = Object.getOwnPropertyDescriptor(stateProto, key);
-            if (desc && typeof desc.get === 'function' && typeof desc.set !== 'function')
-                continue;
-            stateObj[key] = state[key];
-        }
-        return stateObj;
-    };
-    ComponentReducer.finalizeStateObject = function (state, component) {
+    ComponentReducer.finalizeStateObject = function (component) {
         log.verbose('[finalizeStateObject] finalizing state.');
-        var finalizedState = Object.assign({}, state);
+        var finalizedState = Object.assign({}, component);
         finalizedState = ignoreState_IgnoreState.removeIgnoredProps(finalizedState, component);
         log.verbose('[finalizeStateObject] state finalized.');
         return finalizedState;
@@ -939,9 +865,7 @@ var reducer_ComponentReducer = (function () {
         var rootReducer;
         var info = componentInfo_ComponentInfo.getInfo(obj);
         if (info) {
-            rootReducer = info.reducerCreator(function (comp) {
-                context.changedComponents[context.path] = comp;
-            });
+            rootReducer = info.reducer;
         }
         else {
             rootReducer = ComponentReducer.identityReducer;
@@ -1046,7 +970,7 @@ var component_Component = (function () {
         var selfClassInfo = classInfo_ClassInfo.getOrInitInfo(component);
         var templateClassInfo = classInfo_ClassInfo.getInfo(template) || new classInfo_ClassInfo();
         selfClassInfo.ignoreState = templateClassInfo.ignoreState;
-        selfInfo.reducerCreator = reducer_ComponentReducer.createReducer(component, template);
+        selfInfo.reducer = reducer_ComponentReducer.createReducer(component, template);
     };
     Component.createSubComponents = function (treeNode, store, template, context) {
         if (isPrimitive(treeNode))
@@ -1081,7 +1005,6 @@ var component_Component = (function () {
 
 
 
-var snakecase = __webpack_require__(4);
 var actions_ComponentActions = (function () {
     function ComponentActions() {
     }
@@ -1120,17 +1043,9 @@ var actions_ComponentActions = (function () {
         return componentActions;
     };
     ComponentActions.getActionName = function (template, methodName) {
-        var options = Object.assign(new ActionOptions(), globalOptions.action);
-        var actionName = methodName;
-        var actionNamespace = template.constructor.name;
-        if (options.uppercaseActions) {
-            actionName = snakecase(actionName).toUpperCase();
-            actionNamespace = snakecase(actionNamespace).toUpperCase();
-        }
-        if (options.actionNamespace) {
-            actionName = actionNamespace + options.actionNamespaceSeparator + actionName;
-        }
-        return actionName;
+        var className = template.constructor.name;
+        var resolver = globalOptions.actionNameResolver;
+        return resolver(className, methodName);
     };
     return ComponentActions;
 }());
@@ -1158,7 +1073,6 @@ function isInstanceOf(obj, type) {
 /* concated harmony reexport */__webpack_require__.d(__webpack_exports__, "ignoreState", function() { return ignoreState; });
 /* concated harmony reexport */__webpack_require__.d(__webpack_exports__, "sequence", function() { return sequence; });
 /* concated harmony reexport */__webpack_require__.d(__webpack_exports__, "withId", function() { return withId; });
-/* concated harmony reexport */__webpack_require__.d(__webpack_exports__, "ActionOptions", function() { return ActionOptions; });
 /* concated harmony reexport */__webpack_require__.d(__webpack_exports__, "AppOptions", function() { return AppOptions; });
 /* concated harmony reexport */__webpack_require__.d(__webpack_exports__, "GlobalOptions", function() { return GlobalOptions; });
 /* concated harmony reexport */__webpack_require__.d(__webpack_exports__, "LogLevel", function() { return LogLevel; });
@@ -1176,18 +1090,6 @@ function isInstanceOf(obj, type) {
 /***/ (function(module, exports) {
 
 module.exports = require("redux");
-
-/***/ }),
-/* 3 */
-/***/ (function(module, exports) {
-
-module.exports = require("lodash.get");
-
-/***/ }),
-/* 4 */
-/***/ (function(module, exports) {
-
-module.exports = require("lodash.snakecase");
 
 /***/ })
 /******/ ]);

@@ -36,8 +36,6 @@
     "release": "npm run lint && npm run test && webpack && webpack --config webpack.config.dev.js"
   },
   "dependencies": {
-    "lodash.get": "4.4.2",
-    "lodash.snakecase": "4.1.1",
     "redux": "3.7.2"
   },
   "devDependencies": {

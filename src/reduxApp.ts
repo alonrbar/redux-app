@@ -5,7 +5,6 @@ import { ComponentInfo } from './info';
 import { AppOptions, globalOptions, GlobalOptions } from './options';
 import { Constructor, IMap, Listener } from './types';
 import { isPrimitive, log } from './utils';
-const getProp = require('lodash.get');
 
 // tslint:disable:ban-types
 
@@ -27,7 +26,6 @@ class UpdateContext {
 
     public visited = new Set();
     public path = ROOT_COMPONENT_PATH;
-    public forceRecursion = false;
 
     constructor(initial?: Partial<UpdateContext>) {
         Object.assign(this, initial);
@@ -158,10 +156,8 @@ export class ReduxApp<T extends object> {
         const rootReducer = ComponentReducer.combineReducersTree(this.root, reducersContext);
 
         // listen to state changes
-        if (options.updateState) {
-            const stateListener = this.updateState(reducersContext);
-            this.subscriptionDisposer = this.store.subscribe(stateListener);
-        }
+        const stateListener = this.updateState(reducersContext);
+        this.subscriptionDisposer = this.store.subscribe(stateListener);
 
         // update the store
         this.store.replaceReducer(rootReducer);
@@ -260,54 +256,34 @@ export class ReduxApp<T extends object> {
     //
     // update state
     //
+    // update the application tree, i.e. propagate the store's state to the components.
+    // required on initial state, state rehydration, time-travel debugging, etc.
+    //
 
     private updateState(reducersContext: CombineReducersContext): Listener {
         return () => {
 
-            //
-            // Reducers are invoked with regular objects, therefor we use this
-            // method which copies the resulted values back to the components.
-            //
-
-            const start = Date.now();
-
-            // update the application tree
-            const newState = this.store.getState();
             if (!this.initialStateUpdated || !reducersContext.invoked) {
 
-                // initial state, state rehydration, time-travel debugging, etc. - update the entire tree
+                // update the application tree
+
+                const start = Date.now();
+
+                const newState = this.store.getState();
+                this.updateStateRecursion(this.root, newState, new UpdateContext());
                 this.initialStateUpdated = true;
-                this.updateStateRecursion(this.root, newState, new UpdateContext({ forceRecursion: true }));
+
+                const end = Date.now();
+                log.debug(`[updateState] Component tree updated in ${end - start}ms.`);
+
             } else {
 
-                // standard update - update only changed components
-                this.updateChangedComponents({ [ROOT_COMPONENT_PATH]: newState }, reducersContext.changedComponents);
+                // no need to update - relevant components are updated inside their reducers
             }
 
             // reset reducers context
             reducersContext.reset();
-
-            const end = Date.now();
-
-            log.debug(`[updateState] Component tree updated in ${end - start}ms.`);
         };
-    }
-
-    private updateChangedComponents(newState: any, changedComponents: IMap<Component>): void {
-
-        const changedPaths = Object.keys(changedComponents);
-        const updateContext = new UpdateContext();
-
-        for (let path of changedPaths) {
-
-            const curComponent = changedComponents[path];
-            var newSubState = getProp(newState, path);
-
-            this.updateStateRecursion(curComponent, newSubState, {
-                ...updateContext,
-                path
-            });
-        }
     }
 
     private updateStateRecursion(obj: any, newState: any, context: UpdateContext): any {
@@ -325,20 +301,12 @@ export class ReduxApp<T extends object> {
             return obj;
         context.visited.add(obj);
 
-        if (context.forceRecursion || (obj instanceof Component)) {
-
-            // update
-            var changeMessage: string;
-            if (Array.isArray(obj) && Array.isArray(newState)) {
-                changeMessage = this.updateArray(obj, newState, context);
-            } else {
-                changeMessage = this.updateObject(obj, newState, context);
-            }
+        // update
+        var changeMessage: string;
+        if (Array.isArray(obj) && Array.isArray(newState)) {
+            changeMessage = this.updateArray(obj, newState, context);
         } else {
-
-            // overwrite
-            obj = newState;
-            changeMessage = 'Object overwritten.';
+            changeMessage = this.updateObject(obj, newState, context);
         }
 
         // log changes

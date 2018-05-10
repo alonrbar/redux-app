@@ -1,5 +1,5 @@
-import { Dispatch } from 'redux';
-import { Component, ReducerCreator } from '../components';
+import { Dispatch, Reducer } from 'redux';
+import { Component } from '../components';
 import { COMPONENT_INFO, getSymbol, setSymbol } from '../symbols';
 
 // tslint:disable:ban-types
@@ -20,11 +20,11 @@ export class ComponentInfo {
         const info = new ComponentInfo(template, dispatch, id);
         return setSymbol(component, COMPONENT_INFO, info);
     }
-
+    
     public readonly id: any;
     public readonly originalClass: Function;
     public readonly dispatch: Dispatch<any>;
-    public reducerCreator: ReducerCreator;
+    public reducer: Reducer<object>;
 
     constructor(template: object, dispatch: Dispatch<any>, id: any) {
         this.originalClass = template.constructor;

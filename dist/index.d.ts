@@ -113,26 +113,6 @@ export interface IMap<T> {
 // Options
 //
 
-export class ActionOptions {
-    /**
-     * Add the class name of the object that holds the action to the action name.
-     * Format: <class name><separator><action name>
-     * Default value: true.
-     */
-    actionNamespace?: boolean;
-    /**
-     * Default value: . (dot)
-     */
-    actionNamespaceSeparator?: string;
-    /**
-     * Use redux style action names. For instance, if a component defines a
-     * method called 'incrementCounter' the matching action name will be
-     * 'INCREMENT_COUNTER'.
-     * Default value: false.
-     */
-    uppercaseActions?: boolean;
-}
-
 export class AppOptions {
     /**
      * Name of the newly created app.
@@ -156,7 +136,7 @@ export class GlobalOptions {
     /**
      * Customize actions naming.
      */
-    action: ActionOptions;
+    actionNameResolver: (className: string, methodName: string) => string;
 }
 
 export enum LogLevel {

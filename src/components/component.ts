@@ -80,7 +80,7 @@ export class Component {
         selfClassInfo.ignoreState = templateClassInfo.ignoreState;
 
         // reducer
-        selfInfo.reducerCreator = ComponentReducer.createReducer(component, template);
+        selfInfo.reducer = ComponentReducer.createReducer(component, template);
     }
 
     private static createSubComponents(treeNode: any, store: Store<object>, template: object, context: ComponentCreationContext): void {

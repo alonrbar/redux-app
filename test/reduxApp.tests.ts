@@ -184,62 +184,6 @@ describe(nameof(ReduxApp), () => {
 
     describe('updateState', () => {
 
-        describe('updateState option', () => {
-
-            it("component tree is not updated when 'updateState' options is turned off", () => {
-
-                class App {
-    
-                    public num = 0;
-    
-                    @action
-                    public increment() {
-                        this.num = this.num + 1;
-                    }
-                }
-    
-                const app = new ReduxApp(new App(), { updateState: false });
-                try {
-    
-                    expect(app.root.num).to.eq(0);
-    
-                    app.root.increment();
-    
-                    expect(app.root.num).to.eq(0);
-    
-                } finally {
-                    app.dispose();
-                }
-            });
-    
-            it("store still updates when 'updateState' options is turned off", () => {
-    
-                class App {
-    
-                    public num = 0;
-    
-                    @action
-                    public increment() {
-                        this.num = this.num + 1;
-                    }
-                }
-    
-                const app = new ReduxApp(new App(), { updateState: false });
-                try {
-    
-                    expect(app.store.getState().num).to.eq(0);
-    
-                    app.root.increment();
-    
-                    expect(app.store.getState().num).to.eq(1);
-    
-                } finally {
-                    app.dispose();
-                }
-            });
-
-        });
-
         describe('properties', () => {
 
             it('removes component properties that do not exists on the new state', () => {

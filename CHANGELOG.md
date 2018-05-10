@@ -4,7 +4,26 @@
 
 ### Added
 
+- GlobalOptions.actionNameResolver.
 - More details when throwing "Component method invoked with non-Component as 'this'".
+
+### Changed
+
+- Change the way components get updated. From now on they are being updated
+  directly inside their reducer instead of in the 'updateState' phase and the
+  'updateState' phase is only executed when rehydrating or time traveling.
+  This also means that components are the real source of truth now and store only
+  reflects their state.
+- `ignoreState` props can be manipulated by actions.
+- Reducers no longer throw when invoking an action inside another action (that
+  does not mean redux won't warn you though). Even though, keep in mind that it
+  is not recommended to do so and that the previous behavior may be restored in
+  later versions.
+
+### Removed
+
+- Remove `ActionOptions`.
+- Remove `AppOptions.updateState` - components always change in respond to their actions.
 
 ## [2.1.0 - 2018-05-10](https://github.com/alonrbar/redux-app/tree/v2.1.0)
 

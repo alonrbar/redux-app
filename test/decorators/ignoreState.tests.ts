@@ -62,7 +62,7 @@ describe(nameof(ignoreState), () => {
         }
     });
 
-    it("decorated property can not be manipulated through pure actions", () => {
+    it("decorated property can be manipulated through actions", () => {
 
         class App {
 
@@ -83,7 +83,7 @@ describe(nameof(ignoreState), () => {
 
             app.root.increment();
 
-            expect(app.root.value).to.eql(0);
+            expect(app.root.value).to.eql(1);
             expect(app.store.getState().value).to.be.undefined;
 
         } finally {

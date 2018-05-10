@@ -2,21 +2,18 @@ import { Reducer, ReducersMapObject } from 'redux';
 import { IgnoreState } from '../decorators';
 import { ComponentInfo, ComponentTemplateInfo } from '../info';
 import { ROOT_COMPONENT_PATH } from '../reduxApp';
-import { IMap, Listener } from '../types';
-import { clearProperties, defineProperties, DescriptorType, getMethods, isPrimitive, log, simpleCombineReducers } from '../utils';
+import { IMap } from '../types';
+import { getMethods, isPrimitive, log, simpleCombineReducers } from '../utils';
 import { ComponentActions, ReduxAppAction } from './actions';
 import { Component } from './component';
 
 // tslint:disable:member-ordering ban-types
-
-export type ReducerCreator = (changeListener: Listener<Component>) => Reducer<object>;
 
 export class CombineReducersContext {
 
     public visited = new Set();
     public path = ROOT_COMPONENT_PATH;
     public componentPaths: string[] = [];
-    public changedComponents: IMap<Component> = {};
     public invoked = false;
 
     constructor(initial?: Partial<CombineReducersContext>) {
@@ -24,7 +21,6 @@ export class CombineReducersContext {
     }
 
     public reset(): void {
-        clearProperties(this.changedComponents);
         this.invoked = false;
     }
 }
@@ -37,34 +33,30 @@ export class ComponentReducer {
     // public methods
     //
 
-    public static createReducer(component: Component, componentTemplate: object): ReducerCreator {
+    public static createReducer(component: Component, componentTemplate: object): Reducer<any> {
 
         const templateInfo = ComponentTemplateInfo.getInfo(componentTemplate);
         if (!templateInfo)
             throw new Error(`Inconsistent component '${componentTemplate.constructor.name}'. The 'component' class decorator is missing.`);
 
         const methods = ComponentReducer.createMethodsLookup(componentTemplate, templateInfo);
-        const stateProto = ComponentReducer.createStateObjectPrototype(component, templateInfo);
         const componentId = ComponentInfo.getInfo(component).id;
 
-        // reducer creator
-        return (changeListener: Listener<Component>) =>
-
-            // the reducer
-            (state: object, action: ReduxAppAction) => {
+        // the reducer
+        return (state: object, action: ReduxAppAction) => {
 
                 log.verbose(`[reducer] Reducer of: ${componentTemplate.constructor.name}, action: ${action.type}.`);
 
                 // initial state
                 if (state === undefined) {
                     log.verbose('[reducer] State is undefined, returning initial value.');
-                    return ComponentReducer.finalizeStateObject(component, component);
+                    return ComponentReducer.finalizeStateObject(component);
                 }
 
                 // preloaded state
                 if (state === componentTemplate) {
                     log.verbose("[reducer] State equals to component's template, returning initial value.");
-                    return ComponentReducer.finalizeStateObject(component, component);
+                    return ComponentReducer.finalizeStateObject(component);
                 }
 
                 // check component id
@@ -80,16 +72,12 @@ export class ComponentReducer {
                     return state;
                 }
 
-                // call the action-reducer with the new state as the 'this' argument
-                const newState = ComponentReducer.createStateObject(state, stateProto);
-                actionReducer.call(newState, ...action.payload);
-
-                // notify changes
-                changeListener(component);
+                // invoke the action-reducer
+                actionReducer.call(component, ...action.payload);
 
                 // return new state                
                 log.verbose('[reducer] Reducer invoked, returning new state.');
-                return ComponentReducer.finalizeStateObject(newState, component);
+                return ComponentReducer.finalizeStateObject(component);
             };
     }
 
@@ -129,56 +117,10 @@ export class ComponentReducer {
         return actionMethods;
     }
 
-    /**
-     * See description of 'createStateObject'.
-     */
-    private static createStateObjectPrototype(component: Component, templateInfo: ComponentTemplateInfo): object {
-
-        // assign properties
-        const stateProto: any = defineProperties({}, component, [DescriptorType.Property]);
-
-        // assign methods
-        const componentMethods = getMethods(component);
-        for (let key of Object.keys(componentMethods)) {
-            if (!templateInfo.actions[key]) {
-                // regular method
-                stateProto[key] = componentMethods[key].bind(component);
-            } else {
-                // action (not allowed)
-                stateProto[key] = ComponentReducer.actionInvokedError;
-            }
-        }
-        return stateProto;
-    }
-
-    private static actionInvokedError() {
-        throw new Error("Actions should not be invoked from within other actions.");
-    }
-
-    /**
-     * Create a "state object". The state object receives it's properties from
-     * the current state and it's methods from the owning component. Methods
-     * that represent actions are replace with a throw call, while regular
-     * methods are kept in place.
-     */
-    private static createStateObject(state: any, stateProto: object): object {
-        const stateObj = Object.create(stateProto);
-        for (const key of Object.keys(state)) {
-
-            // don't attempt to assign get only properties
-            const desc = Object.getOwnPropertyDescriptor(stateProto, key);
-            if (desc && typeof desc.get === 'function' && typeof desc.set !== 'function')
-                continue;
-
-            stateObj[key] = state[key];
-        }
-        return stateObj;
-    }
-
-    private static finalizeStateObject(state: object, component: Component): object {
+    private static finalizeStateObject(component: Component): object {
 
         log.verbose('[finalizeStateObject] finalizing state.');
-        let finalizedState = Object.assign({}, state);
+        let finalizedState = Object.assign({}, component);
 
         finalizedState = IgnoreState.removeIgnoredProps(finalizedState, component);
 
@@ -209,9 +151,7 @@ export class ComponentReducer {
         let rootReducer: Reducer<any>;
         const info = ComponentInfo.getInfo(obj as any);
         if (info) {
-            rootReducer = info.reducerCreator(comp => {
-                context.changedComponents[context.path] = comp;
-            });
+            rootReducer = info.reducer;
         } else {
             rootReducer = ComponentReducer.identityReducer;
         }

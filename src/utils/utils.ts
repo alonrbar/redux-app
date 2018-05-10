@@ -3,13 +3,6 @@ import { IMap, Method } from '../types';
 
 // tslint:disable:ban-types
 
-export function clearProperties(obj: any): void {
-    const keys = Object.keys(obj);
-    for (let key of keys) {
-        delete obj[key];
-    }
-}
-
 export enum DescriptorType {
     None = "None",
     Field = "Field",
