@@ -35,6 +35,7 @@ export class GlobalOptions {
      * Default value: LogLevel.Warn
      */
     public logLevel = LogLevel.Warn;
+    public updateStore = true;
     /**
      * Customize actions naming.
      */

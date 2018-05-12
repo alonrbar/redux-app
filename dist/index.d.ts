@@ -134,6 +134,10 @@ export class GlobalOptions {
      */
     logLevel: LogLevel;
     /**
+     * Default value: true
+     */
+    updateStore: boolean;
+    /**
      * Customize actions naming.
      */
     actionNameResolver: (className: string, methodName: string) => string;

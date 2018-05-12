@@ -166,6 +166,7 @@ var LogLevel;
 var GlobalOptions = (function () {
     function GlobalOptions() {
         this.logLevel = LogLevel.Warn;
+        this.updateStore = true;
         this.actionNameResolver = function (className, methodName) { return "[" + className + "] " + methodName; };
     }
     return GlobalOptions;
@@ -557,8 +558,10 @@ var reduxApp_ReduxApp = (function () {
             componentPaths: Object.keys(creationContext.createdComponents)
         });
         var rootReducer = reducer_ComponentReducer.combineReducersTree(this.root, reducersContext);
-        var stateListener = this.updateState(reducersContext);
-        this.subscriptionDisposer = this.store.subscribe(stateListener);
+        if (globalOptions.updateStore) {
+            var stateListener = this.updateState(reducersContext);
+            this.subscriptionDisposer = this.store.subscribe(stateListener);
+        }
         this.store.replaceReducer(rootReducer);
     }
     ReduxApp.createApp = function (appTemplate) {
@@ -779,6 +782,8 @@ var reducer___assign = (this && this.__assign) || Object.assign || function(t) {
 
 
 
+
+var dummyState = {};
 var reducer_CombineReducersContext = (function () {
     function CombineReducersContext(initial) {
         this.visited = new Set();
@@ -821,7 +826,9 @@ var reducer_ComponentReducer = (function () {
                 log.verbose('[reducer] No matching action in this reducer, returning previous state.');
                 return state;
             }
+            log.verbose('[reducer] Action reducer start.');
             actionReducer.call.apply(actionReducer, [component].concat(action.payload));
+            log.verbose('[reducer] Action reducer end.');
             log.verbose('[reducer] Reducer invoked, returning new state.');
             return ComponentReducer.finalizeStateObject(component);
         };
@@ -848,6 +855,8 @@ var reducer_ComponentReducer = (function () {
         return actionMethods;
     };
     ComponentReducer.finalizeStateObject = function (component) {
+        if (!globalOptions.updateStore)
+            return dummyState;
         log.verbose('[finalizeStateObject] finalizing state.');
         var finalizedState = Object.assign({}, component);
         finalizedState = ignoreState_IgnoreState.removeIgnoredProps(finalizedState, component);

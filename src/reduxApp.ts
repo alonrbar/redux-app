@@ -156,8 +156,10 @@ export class ReduxApp<T extends object> {
         const rootReducer = ComponentReducer.combineReducersTree(this.root, reducersContext);
 
         // listen to state changes
-        const stateListener = this.updateState(reducersContext);
-        this.subscriptionDisposer = this.store.subscribe(stateListener);
+        if (globalOptions.updateStore) {
+            const stateListener = this.updateState(reducersContext);
+            this.subscriptionDisposer = this.store.subscribe(stateListener);
+        }
 
         // update the store
         this.store.replaceReducer(rootReducer);

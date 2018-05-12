@@ -1,6 +1,7 @@
 import { Reducer, ReducersMapObject } from 'redux';
 import { IgnoreState } from '../decorators';
 import { ComponentInfo, ComponentTemplateInfo } from '../info';
+import { globalOptions } from '../options';
 import { ROOT_COMPONENT_PATH } from '../reduxApp';
 import { IMap } from '../types';
 import { getMethods, isPrimitive, log, simpleCombineReducers } from '../utils';
@@ -8,6 +9,8 @@ import { ComponentActions, ReduxAppAction } from './actions';
 import { Component } from './component';
 
 // tslint:disable:member-ordering ban-types
+
+const dummyState = {};
 
 export class CombineReducersContext {
 
@@ -45,40 +48,42 @@ export class ComponentReducer {
         // the reducer
         return (state: object, action: ReduxAppAction) => {
 
-                log.verbose(`[reducer] Reducer of: ${componentTemplate.constructor.name}, action: ${action.type}.`);
+            log.verbose(`[reducer] Reducer of: ${componentTemplate.constructor.name}, action: ${action.type}.`);
 
-                // initial state
-                if (state === undefined) {
-                    log.verbose('[reducer] State is undefined, returning initial value.');
-                    return ComponentReducer.finalizeStateObject(component);
-                }
-
-                // preloaded state
-                if (state === componentTemplate) {
-                    log.verbose("[reducer] State equals to component's template, returning initial value.");
-                    return ComponentReducer.finalizeStateObject(component);
-                }
-
-                // check component id
-                if (componentId !== action.id) {
-                    log.verbose(`[reducer] Component id and action.id don't match (${componentId} !== ${action.id}).`);
-                    return state;
-                }
-
-                // check if should use this reducer
-                const actionReducer = methods[action.type];
-                if (!actionReducer) {
-                    log.verbose('[reducer] No matching action in this reducer, returning previous state.');
-                    return state;
-                }
-
-                // invoke the action-reducer
-                actionReducer.call(component, ...action.payload);
-
-                // return new state                
-                log.verbose('[reducer] Reducer invoked, returning new state.');
+            // initial state
+            if (state === undefined) {
+                log.verbose('[reducer] State is undefined, returning initial value.');
                 return ComponentReducer.finalizeStateObject(component);
-            };
+            }
+
+            // preloaded state
+            if (state === componentTemplate) {
+                log.verbose("[reducer] State equals to component's template, returning initial value.");
+                return ComponentReducer.finalizeStateObject(component);
+            }
+
+            // check component id
+            if (componentId !== action.id) {
+                log.verbose(`[reducer] Component id and action.id don't match (${componentId} !== ${action.id}).`);
+                return state;
+            }
+
+            // check if should use this reducer
+            const actionReducer = methods[action.type];
+            if (!actionReducer) {
+                log.verbose('[reducer] No matching action in this reducer, returning previous state.');
+                return state;
+            }
+
+            // invoke the action-reducer
+            log.verbose('[reducer] Action reducer start.');
+            actionReducer.call(component, ...action.payload);
+            log.verbose('[reducer] Action reducer end.');
+
+            // return new state                
+            log.verbose('[reducer] Reducer invoked, returning new state.');
+            return ComponentReducer.finalizeStateObject(component);
+        };
     }
 
     public static combineReducersTree(root: Component, context: CombineReducersContext): Reducer<any> {
@@ -118,6 +123,9 @@ export class ComponentReducer {
     }
 
     private static finalizeStateObject(component: Component): object {
+
+        if (!globalOptions.updateStore)
+            return dummyState;
 
         log.verbose('[finalizeStateObject] finalizing state.');
         let finalizedState = Object.assign({}, component);
